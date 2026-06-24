@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Umfrage-Tool</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📋 Umfrage-Tool</h1>
+            <p class="subtitle">Erstelle und verwalte Umfragen</p>
+        </header>
+
+        <!-- Hauptmenü -->
+        <nav class="nav-tabs">
+            <button class="nav-btn active" onclick="showView('list')">Übersicht</button>
+            <button class="nav-btn" onclick="showView('create')">Neue Umfrage</button>
+            <button class="nav-btn" onclick="showView('respond')">An Umfrage antworten</button>
+        </nav>
+
+        <!-- View: Umfragen-Liste -->
+        <div id="list-view" class="view active">
+            <div class="section">
+                <h2>Meine Umfragen</h2>
+                <div id="surveys-list" class="surveys-grid">
+                    <p class="placeholder">Keine Umfragen vorhanden</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Neue Umfrage erstellen -->
+        <div id="create-view" class="view">
+            <div class="section">
+                <h2>Neue Umfrage erstellen</h2>
+
+                <form id="create-survey-form" class="form">
+                    <div class="form-group">
+                        <label for="survey-title">Umfragetitel</label>
+                        <input type="text" id="survey-title" required placeholder="z.B. Mitarbeiterzufriedenheit">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="survey-desc">Beschreibung</label>
+                        <textarea id="survey-desc" placeholder="Beschreibe das Ziel der Umfrage..."></textarea>
+                    </div>
+
+                    <div id="questions-container" class="questions-container"></div>
+
+                    <button type="button" class="btn btn-secondary" onclick="addQuestionForm()">+ Frage hinzufügen</button>
+                    <button type="submit" class="btn btn-primary">Umfrage erstellen</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- View: An Umfrage antworten -->
+        <div id="respond-view" class="view">
+            <div class="section">
+                <h2>An Umfrage antworten</h2>
+
+                <div id="respond-select" class="form-group">
+                    <label for="respond-survey">Wähle eine Umfrage</label>
+                    <select id="respond-survey" onchange="loadSurveyForResponse()">
+                        <option value="">-- Umfrage wählen --</option>
+                    </select>
+                </div>
+
+                <form id="response-form" class="form" style="display: none;">
+                    <div id="response-questions-container"></div>
+                    <button type="submit" class="btn btn-primary">Antworten absenden</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div id="results-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="results-title">Umfrageergebnisse</h2>
+                <button class="modal-close" onclick="closeResults()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="results-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
