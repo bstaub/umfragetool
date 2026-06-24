@@ -32,7 +32,7 @@ docker build -t umfrage-tool .
 ```bash
 docker run -d \
   --name umfrage-tool \
-  -p 3000:3000 \
+  -p 3030:3033\
   -v umfrage-data:/app/data \
   --restart unless-stopped \
   umfrage-tool

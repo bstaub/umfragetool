@@ -237,14 +237,16 @@ document.getElementById('create-survey-form')?.addEventListener('submit', async 
     const title = document.getElementById('survey-title').value;
     const description = document.getElementById('survey-desc').value;
 
-    // Fragen sammeln
+    // Fragen sammeln und validieren
     const questions = [];
+    let validationError = null;
+
     document.querySelectorAll('.question-form').forEach((qForm, index) => {
         const questionText = qForm.querySelector('.question-text').value;
         const questionType = qForm.querySelector('.question-type').value;
 
         if (!questionText.trim()) {
-            alert('Bitte alle Fragen ausfüllen');
+            validationError = 'Bitte alle Fragen ausfüllen';
             return;
         }
 
@@ -257,7 +259,7 @@ document.getElementById('create-survey-form')?.addEventListener('submit', async 
             });
 
             if (options.length === 0) {
-                alert('Bitte mindestens eine Antwortmöglichkeit hinzufügen');
+                validationError = 'Bitte mindestens eine Antwortmöglichkeit hinzufügen';
                 return;
             }
         }
@@ -269,6 +271,11 @@ document.getElementById('create-survey-form')?.addEventListener('submit', async 
             options: options
         });
     });
+
+    if (validationError) {
+        alert(validationError);
+        return;
+    }
 
     try {
         // Umfrage erstellen
@@ -321,6 +328,9 @@ async function viewSurveyResults(surveyId) {
         const statsResponse = await fetch(`/api/surveys/${surveyId}/statistics`);
         const stats = await statsResponse.json();
 
+        const responsesResponse = await fetch(`/api/surveys/${surveyId}/responses`);
+        const responses = await responsesResponse.json();
+
         const modal = document.getElementById('results-modal');
         const resultsContainer = document.getElementById('results-container');
 
@@ -339,18 +349,24 @@ async function viewSurveyResults(surveyId) {
                     <div class="stat-label">Fragen</div>
                 </div>
             </div>
+            <div class="results-tabs">
+                <button class="tab-btn active" onclick="switchResultsTab('statistics')">Statistiken</button>
+                <button class="tab-btn" onclick="switchResultsTab('responses')">Alle Antworten</button>
+            </div>
         `;
 
-        // Gruppiere Statistiken nach Frage
+        // Statistiken-Tab
+        html += `<div id="results-statistics" class="results-tab active">`;
         const groupedStats = {};
         stats.statistics.forEach(stat => {
             if (!groupedStats[stat.id]) {
                 groupedStats[stat.id] = {
                     question_text: stat.question_text,
+                    question_type: stat.question_type,
                     options: []
                 };
             }
-            if (stat.option_text) {
+            if (stat.option_text && stat.question_type === 'multiple_choice') {
                 groupedStats[stat.id].options.push({
                     option_text: stat.option_text,
                     answer_count: stat.answer_count
@@ -358,27 +374,56 @@ async function viewSurveyResults(surveyId) {
             }
         });
 
-        // Ergebnisse für jede Frage anzeigen
         Object.values(groupedStats).forEach(question => {
-            html += `<div class="result-question"><h4>${question.question_text}</h4>`;
-            question.options.forEach(option => {
-                const percentage = stats.total_responses > 0
-                    ? ((option.answer_count / stats.total_responses) * 100).toFixed(1)
-                    : 0;
+            if (question.question_type === 'multiple_choice') {
+                html += `<div class="result-question"><h4>${question.question_text}</h4>`;
+                question.options.forEach(option => {
+                    const percentage = stats.total_responses > 0
+                        ? ((option.answer_count / stats.total_responses) * 100).toFixed(1)
+                        : 0;
+                    html += `
+                        <div class="result-option">
+                            <div class="result-option-label">
+                                <span class="result-option-text">${option.option_text}</span>
+                                <span class="result-option-stats">${option.answer_count} Stimmen (${percentage}%)</span>
+                            </div>
+                            <div class="result-bar">
+                                <div class="result-bar-fill" style="width: ${percentage}%">${percentage > 5 ? percentage + '%' : ''}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+        });
+        html += `</div>`;
+
+        // Antworten-Tab
+        html += `<div id="results-responses" class="results-tab">`;
+        responses.forEach(response => {
+            html += `
+                <div class="response-item">
+                    <div class="response-header">
+                        <strong>Teilnehmer:</strong> ${response.respondent_id}
+                        <span class="response-date">${new Date(response.created_at).toLocaleDateString('de-DE')} ${new Date(response.created_at).toLocaleTimeString('de-DE')}</span>
+                    </div>
+                    <div class="response-answers">
+            `;
+            response.answers.forEach(answer => {
+                const displayText = answer.option_text || answer.answer_text || '(keine Antwort)';
                 html += `
-                    <div class="result-option">
-                        <div class="result-option-label">
-                            <span class="result-option-text">${option.option_text}</span>
-                            <span class="result-option-stats">${option.answer_count} Stimmen (${percentage}%)</span>
-                        </div>
-                        <div class="result-bar">
-                            <div class="result-bar-fill" style="width: ${percentage}%">${percentage > 5 ? percentage + '%' : ''}</div>
-                        </div>
+                    <div class="answer-item">
+                        <div class="answer-question">${answer.question_text}</div>
+                        <div class="answer-value">${displayText}</div>
                     </div>
                 `;
             });
-            html += `</div>`;
+            html += `
+                    </div>
+                </div>
+            `;
         });
+        html += `</div>`;
 
         resultsContainer.innerHTML = html;
         modal.classList.add('active');
@@ -386,6 +431,14 @@ async function viewSurveyResults(surveyId) {
         console.error('Fehler beim Laden der Ergebnisse:', error);
         alert('Fehler beim Laden der Ergebnisse');
     }
+}
+
+function switchResultsTab(tabName) {
+    document.querySelectorAll('.results-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+    document.getElementById(`results-${tabName}`).classList.add('active');
+    event.target.classList.add('active');
 }
 
 // Modal schließen

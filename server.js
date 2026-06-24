@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = 3000;
+const PORT = 3030;
 
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
@@ -244,6 +244,7 @@ app.get('/api/surveys/:surveyId/statistics', (req, res) => {
             SELECT
                 q.id,
                 q.question_text,
+                q.question_type,
                 o.id as option_id,
                 o.option_text,
                 COUNT(a.id) as answer_count
@@ -251,7 +252,7 @@ app.get('/api/surveys/:surveyId/statistics', (req, res) => {
             LEFT JOIN options o ON q.id = o.question_id
             LEFT JOIN answers a ON o.id = a.option_id
             WHERE q.survey_id = ?
-            GROUP BY o.id
+            GROUP BY q.id, o.id
         `, [surveyId], (err, stats) => {
             if (err) {
                 res.status(500).json({ error: err.message });
@@ -263,6 +264,56 @@ app.get('/api/surveys/:surveyId/statistics', (req, res) => {
                 statistics: stats
             });
         });
+    });
+});
+
+// GET: Alle Antworten pro Teilnehmer
+app.get('/api/surveys/:surveyId/responses', (req, res) => {
+    const { surveyId } = req.params;
+
+    db.all(`
+        SELECT
+            r.id as response_id,
+            r.respondent_id,
+            r.created_at,
+            q.id as question_id,
+            q.question_text,
+            q.question_type,
+            a.answer_text,
+            o.option_text
+        FROM responses r
+        LEFT JOIN answers a ON r.id = a.response_id
+        LEFT JOIN questions q ON a.question_id = q.id
+        LEFT JOIN options o ON a.option_id = o.id
+        WHERE r.survey_id = ?
+        ORDER BY r.created_at DESC, r.id, q.id
+    `, [surveyId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+
+        // Gruppiere Antworten pro Teilnehmer
+        const responses = {};
+        rows.forEach(row => {
+            if (!responses[row.response_id]) {
+                responses[row.response_id] = {
+                    response_id: row.response_id,
+                    respondent_id: row.respondent_id,
+                    created_at: row.created_at,
+                    answers: []
+                };
+            }
+            responses[row.response_id].answers.push({
+                question_id: row.question_id,
+                question_text: row.question_text,
+                question_type: row.question_type,
+                answer_text: row.answer_text,
+                option_text: row.option_text
+            });
+        });
+
+        res.json(Object.values(responses));
     });
 });
 
