@@ -2,6 +2,7 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = 3000;
@@ -9,8 +10,14 @@ const PORT = 3000;
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
+// Datenbankverzeichnis erstellen (für Docker)
+const dbDir = process.env.DB_PATH || path.join(__dirname, 'data');
+if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+}
+
 // SQLite Datenbank initialisieren
-const db = new sqlite3.Database(path.join(__dirname, 'umfragen.db'), (err) => {
+const db = new sqlite3.Database(path.join(dbDir, 'umfragen.db'), (err) => {
     if (err) {
         console.error('Fehler beim Öffnen der Datenbank:', err);
     } else {
